@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoiceMeeter Remote</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #1e1e1e;
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+    .strip {
+      display: inline-block;
+      margin: 10px;
+      background: #2a2a2a;
+      padding: 15px;
+      border-radius: 8px;
+    }
+    input[type=range] {
+      width: 150px;
+    }
+    input[type=number] {
+      width: 80px;
+      font-size: 16px;
+      margin-top: 5px;
+    }
+    label {
+      display: block;
+      margin: 10px 0 5px;
+    }
+    .disabled {
+      pointer-events: none;
+      opacity: 0.5;
+    }
+  </style>
+</head>
+<body>
+  <h2>VoiceMeeter Remote Control</h2>
+
+  <div id="container">
+    <div class="strip" id="strip0">
+      <h3>Bedroom</h3>
+      <label>Volume</label>
+      <input type="range" min="-60" max="12" step="1" id="gain0" value="0" oninput="updateFromSlider(0)">
+      <input type="number" min="-60" max="12" step="0.1" id="entry0" value="0" onkeydown="if(event.key==='Enter') updateFromEntry(0)">
+      <label>Mute <input type="checkbox" id="mute0" onchange="setMute(0, this.checked)"></label>
+    </div>
+
+    <div class="strip" id="strip1">
+      <h3>Headphones</h3>
+      <label>Volume</label>
+      <input type="range" min="-60" max="12" step="1" id="gain1" value="0" oninput="updateFromSlider(1)">
+      <input type="number" min="-60" max="12" step="0.1" id="entry1" value="0" onkeydown="if(event.key==='Enter') updateFromEntry(1)">
+      <label>Mute <input type="checkbox" id="mute1" onchange="setMute(1, this.checked)"></label>
+    </div>
+
+    <div class="strip" id="strip2">
+      <h3>Bathroom</h3>
+      <label>Volume</label>
+      <input type="range" min="-60" max="12" step="1" id="gain2" value="0" oninput="updateFromSlider(2)">
+      <input type="number" min="-60" max="12" step="0.1" id="entry2" value="0" onkeydown="if(event.key==='Enter') updateFromEntry(2)">
+      <label>Mute <input type="checkbox" id="mute2" onchange="setMute(2, this.checked)"></label>
+    </div>
+  </div>
+
+  <script>
+    let isSynced = false;
+    const labels = ["Bedroom", "Headphones", "Bathroom"];
+
+    function setGain(bus, value) {
+      fetch(`/set_gain?bus=${labels[bus]}&value=${value}`, { method: "POST" });
+    }
+
+    function setMute(bus, state) {
+      fetch(`/set_mute?bus=${labels[bus]}&state=${state ? 1 : 0}`, { method: "POST" });
+    }
+
+    function updateFromSlider(bus) {
+      if (!isSynced) return;
+      const value = document.getElementById("gain" + bus).value;
+      document.getElementById("entry" + bus).value = value;
+      setGain(bus, value);
+    }
+
+    function updateFromEntry(bus) {
+      if (!isSynced) return;
+      const value = parseFloat(document.getElementById("entry" + bus).value);
+      if (isNaN(value)) return;
+      const clamped = Math.max(-60, Math.min(12, value));
+      document.getElementById("gain" + bus).value = clamped;
+      setGain(bus, clamped);
+    }
+
+    function setUIEnabled(enabled) {
+      for (let i = 0; i < 3; i++) {
+        const el = document.getElementById("strip" + i);
+        if (enabled) {
+          el.classList.remove("disabled");
+        } else {
+          el.classList.add("disabled");
+        }
+      }
+    }
+
+    function syncOnce() {
+      fetch('/status')
+        .then(res => res.json())
+        .then(data => {
+          console.log("Fetched from /status:", data);
+          for (let i = 0; i < 3; i++) {
+            const label = labels[i];
+            const bus = data[label];
+            if (!bus) continue;
+            document.getElementById("gain" + i).value = bus.gain;
+            document.getElementById("entry" + i).value = bus.gain;
+            document.getElementById("mute" + i).checked = bus.mute;
+          }
+          isSynced = true;
+          setUIEnabled(true);
+        })
+        .catch((e) => {
+          console.error("Sync failed:", e);
+          alert("⚠️ Failed to sync with VoiceMeeter backend.");
+        });
+    }
+
+    setUIEnabled(false);
+    syncOnce();
+  </script>
+
+</body>
+</html>
