@@ -12,7 +12,7 @@ This is a headless Python script that uses the VoiceMeeter Remote API (DLL) to c
 
 - Windows (VoiceMeeter must be installed)
 - Python 3.9+
-- VoiceMeeterRemote.dll available and accessible
+- VoiceMeeterRemote64.dll available and accessible
 - See `requirements.txt` for Python packages
 
 ## Usage
